@@ -210,6 +210,8 @@ enum HeaderBuildOp {
   HDOP_STRIP_ALL = HDOP_STRIP_FORWARDED | HDOP_STRIP_X_FORWARDED_FOR |
                    HDOP_STRIP_X_FORWARDED_PROTO | HDOP_STRIP_VIA |
                    HDOP_STRIP_EARLY_DATA,
+  // Sec-WebSocket-Accept header field must be stripped.
+  HDOP_STRIP_SEC_WEBSOCKET_ACCEPT = 1 << 4,
 };
 
 // Appends headers in |headers| to |nv|.  |headers| must be indexed
@@ -297,6 +299,7 @@ enum {
   HD__HOST,
   HD__METHOD,
   HD__PATH,
+  HD__PROTOCOL,
   HD__SCHEME,
   HD__STATUS,
   HD_ACCEPT_ENCODING,
@@ -318,6 +321,7 @@ enum {
   HD_LINK,
   HD_LOCATION,
   HD_PROXY_CONNECTION,
+  HD_SEC_WEBSOCKET_ACCEPT,
   HD_SERVER,
   HD_TE,
   HD_TRAILER,

@@ -489,7 +489,7 @@ int HttpDownstreamConnection::push_request_headers() {
 
   auto &balloc = downstream_->get_block_allocator();
 
-  auto connect_method = req.method == HTTP_CONNECT;
+  auto connect_method = req.regular_connect_method();
 
   auto config = get_config();
   auto &httpconf = config->http;
@@ -513,7 +513,8 @@ int HttpDownstreamConnection::push_request_headers() {
   auto buf = downstream_->get_request_buf();
 
   // Assume that method and request path do not contain \r\n.
-  auto meth = http2::to_method_string(req.method);
+  auto meth = http2::to_method_string(
+      req.connect_proto == CONNECT_PROTO_WEBSOCKET ? HTTP_GET : req.method);
   buf->append(meth);
   buf->append(' ');
 
@@ -559,7 +560,8 @@ int HttpDownstreamConnection::push_request_headers() {
 
   // set transfer-encoding only when content-length is unknown and
   // request body is expected.
-  if (!connect_method && req.http2_expect_body && req.fs.content_length == -1) {
+  if (req.method != HTTP_CONNECT && req.http2_expect_body &&
+      req.fs.content_length == -1) {
     downstream_->set_chunked_request(true);
     buf->append("Transfer-Encoding: chunked\r\n");
   }
@@ -568,7 +570,11 @@ int HttpDownstreamConnection::push_request_headers() {
     buf->append("Connection: close\r\n");
   }
 
-  if (!connect_method && req.upgrade_request) {
+  if (req.connect_proto == CONNECT_PROTO_WEBSOCKET) {
+    // TODO Generate Sec-WebSocket-Key
+    buf->append("Upgrade: websocket\r\nConnection: "
+                "Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n");
+  } else if (!connect_method && req.upgrade_request) {
     auto connection = req.fs.header(http2::HD_CONNECTION);
     if (connection) {
       buf->append("Connection: ");
@@ -709,6 +715,7 @@ int HttpDownstreamConnection::push_request_headers() {
   // signal_write() when we received request body chunk, and it
   // enables us to send headers and data in one writev system call.
   if (connect_method || downstream_->get_blocked_request_buf()->rleft() ||
+      req.connect_proto ||
       (!req.http2_expect_body && req.fs.content_length == 0)) {
     signal_write();
   }
@@ -942,7 +949,7 @@ int htp_hdrs_completecb(http_parser *htp) {
       return -1;
     }
   } else if (resp.http_status / 100 == 1 ||
-             (resp.http_status == 200 && req.method == HTTP_CONNECT)) {
+             (resp.http_status == 200 && req.regular_connect_method())) {
     if (resp.fs.header(http2::HD_CONTENT_LENGTH) ||
         resp.fs.header(http2::HD_TRANSFER_ENCODING)) {
       return -1;
