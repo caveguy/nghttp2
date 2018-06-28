@@ -231,7 +231,7 @@ int Http2DownstreamConnection::push_request_headers() {
   if (!downstream_) {
     return 0;
   }
-  if (!http2session_->can_push_request()) {
+  if (!http2session_->can_push_request(downstream_)) {
     // The HTTP2 session to the backend has not been established or
     // connection is now being checked.  This function will be called
     // again just after it is established.
@@ -243,6 +243,10 @@ int Http2DownstreamConnection::push_request_headers() {
   downstream_->set_request_pending(false);
 
   const auto &req = downstream_->request();
+
+  if (req.extended_connect_method() && !http2session_->get_connect_proto()) {
+    return -1;
+  }
 
   auto &balloc = downstream_->get_block_allocator();
 
