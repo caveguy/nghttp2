@@ -763,10 +763,22 @@ bool Downstream::validate_response_recv_body_length() const {
   return true;
 }
 
-void Downstream::check_upgrade_fulfilled() {
+void Downstream::check_upgrade_fulfilled_http2() {
+  if (req_.method == HTTP_CONNECT) {
+    // This handles nonzero req_.connect_proto as well.
+    upgraded_ = 200 <= resp_.http_status && resp_.http_status < 300;
+
+    return;
+  }
+
+  return req_.connect_proto && upgraded_ == resp_.http_status == 200;
+}
+
+void Downstream::check_upgrade_fulfilled_http1() {
   if (req_.method == HTTP_CONNECT) {
     if (req_.connect_proto) {
       // TODO For websocket, check Sec-WebSocket-Accept header field.
+      // This is the case when frontend is h2.
       upgraded_ = resp_.http_status == 101;
     } else {
       upgraded_ = 200 <= resp_.http_status && resp_.http_status < 300;
@@ -790,6 +802,9 @@ void Downstream::inspect_http2_request() {
 }
 
 void Downstream::inspect_http1_request() {
+  // TODO We should not check upgrade if HTTP version is not 1.1.
+  // TODO Should we check Connection: Upgrade?
+
   if (req_.method == HTTP_CONNECT) {
     req_.upgrade_request = true;
   } else {
@@ -802,6 +817,12 @@ void Downstream::inspect_http1_request() {
         req_.http2_upgrade_seen = true;
       } else {
         req_.upgrade_request = true;
+
+        // TODO Should we check Sec-WebSocket-Key, and
+        // Sec-WebSocket-Version as well?
+        if (util::strieq_l("websocket", val)) {
+          req_.connect_proto = CONNECT_PROTO_WEBSOCKET;
+        }
       }
     }
   }

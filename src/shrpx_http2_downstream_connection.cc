@@ -244,7 +244,7 @@ int Http2DownstreamConnection::push_request_headers() {
 
   const auto &req = downstream_->request();
 
-  if (req.extended_connect_method() && !http2session_->get_connect_proto()) {
+  if (req.connect_proto && !http2session_->get_connect_proto()) {
     return -1;
   }
 
@@ -291,8 +291,12 @@ int Http2DownstreamConnection::push_request_headers() {
   nva.reserve(req.fs.headers().size() + 10 + num_cookies +
               httpconf.add_request_headers.size());
 
-  nva.push_back(
-      http2::make_nv_ls_nocopy(":method", http2::to_method_string(req.method)));
+  if (req.connect_proto) {
+    nva.push_back(http2::make_nv_ll(":method", "CONNECT"));
+  } else {
+    nva.push_back(http2::make_nv_ls_nocopy(
+        ":method", http2::to_method_string(req.method)));
+  }
 
   if (!req.regular_connect_method()) {
     assert(!req.scheme.empty());
@@ -468,7 +472,7 @@ int Http2DownstreamConnection::push_request_headers() {
 
   // Add body as long as transfer-encoding is given even if
   // req.fs.content_length == 0 to forward trailer fields.
-  if (req.method == HTTP_CONNECT || transfer_encoding ||
+  if (req.method == HTTP_CONNECT || req.connect_proto || transfer_encoding ||
       req.fs.content_length > 0 || req.http2_expect_body) {
     // Request-body is expected.
     data_prd = {{}, http2_data_read_callback};

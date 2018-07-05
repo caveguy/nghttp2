@@ -1143,7 +1143,7 @@ int on_response_headers(Http2Session *http2session, Downstream *downstream,
   }
 
   downstream->set_response_state(Downstream::HEADER_COMPLETE);
-  downstream->check_upgrade_fulfilled();
+  downstream->check_upgrade_fulfilled_http2();
 
   if (downstream->get_upgraded()) {
     resp.connection_close = true;
@@ -1863,7 +1863,7 @@ bool Http2Session::can_push_request(const Downstream *downstream) const {
   auto &req = downstream->request();
   return state_ == CONNECTED &&
          connection_check_state_ == CONNECTION_CHECK_NONE &&
-         (!req.extended_connect_method() || settings_recved_);
+         (!req.connect_proto || settings_recved_);
 }
 
 void Http2Session::start_checking_connection() {
@@ -1923,7 +1923,7 @@ void Http2Session::submit_pending_requests() {
     }
 
     auto &req = downstream->request();
-    if (req.extended_connect_method() && !settings_recved_) {
+    if (req.connect_proto && !settings_recved_) {
       continue;
     }
 

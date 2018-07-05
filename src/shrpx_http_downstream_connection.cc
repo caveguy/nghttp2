@@ -961,7 +961,7 @@ int htp_hdrs_completecb(http_parser *htp) {
 
   // Check upgrade before processing non-final response, since if
   // upgrade succeeded, 101 response is treated as final in nghttpx.
-  downstream->check_upgrade_fulfilled();
+  downstream->check_upgrade_fulfilled_http1();
 
   if (downstream->get_non_final_response()) {
     // Reset content-length because we reuse same Downstream for the

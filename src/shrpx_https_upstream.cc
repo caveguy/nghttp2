@@ -1028,6 +1028,28 @@ void write_altsvc(DefaultMemchunks *buf, BlockAllocator &balloc,
 }
 } // namespace
 
+namespace {
+StringRef make_websocket_accept_token(BlockAllocator &balloc,
+                                      const Request &req) {
+  static constexpr uint8_t magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+  auto key = req.fs.header(http2::HD_SEC_WEBSOCKET_KEY);
+  assert(key);
+  assert(key.value.size() == 24);
+
+  std::array<uint8_t, 24 + str_size(magic)> s;
+  auto p = std::copy(std::begin(key.value), std::end(key.value), std::begin(s));
+  std::copy(p, magic, str_size(magic));
+
+  std::array<uint8_t, 20> h;
+  if (util::sha1(h.data(), StringRef{std::begin(s), std::end(s)}) != 0) {
+    return StringRef{};
+  }
+
+  return base64::encode(balloc, std::begin(h), std::end(h));
+}
+} // namespace
+
 int HttpsUpstream::on_downstream_header_complete(Downstream *downstream) {
   if (LOG_ENABLED(INFO)) {
     if (downstream->get_non_final_response()) {
@@ -1081,15 +1103,32 @@ int HttpsUpstream::on_downstream_header_complete(Downstream *downstream) {
 
   auto connect_method = req.method == HTTP_CONNECT;
 
+  // TODO If req.connect_proto is set, if status is 200, then rewrite
+  // status to 101.  And signal that upgrade succeeded.  For
+  // websocket, add header fields to indicate that connection is
+  // upgraded to websocket:
+  //   Upgrade: websocket
+  //   Connection: Upgrade
+  //   Sec-WebScoket-Accept: something
+  //
+  // Other ws related header fields should be included in response
+  // header from backend.
+
   auto buf = downstream->get_response_buf();
   buf->append("HTTP/");
   buf->append('0' + req.http_major);
   buf->append('.');
   buf->append('0' + req.http_minor);
   buf->append(' ');
-  buf->append(http2::stringify_status(balloc, resp.http_status));
-  buf->append(' ');
-  buf->append(http2::get_reason_phrase(resp.http_status));
+  if (req.connect_proto && downstream->get_upgraded()) {
+    buf->append(http2::stringify_status(balloc, 101));
+    buf->append(' ');
+    buf->append(http2::get_reason_phrase(101));
+  } else {
+    buf->append(http2::stringify_status(balloc, resp.http_status));
+    buf->append(' ');
+    buf->append(http2::get_reason_phrase(resp.http_status));
+  }
   buf->append("\r\n");
 
   auto config = get_config();
@@ -1139,18 +1178,30 @@ int HttpsUpstream::on_downstream_header_complete(Downstream *downstream) {
   }
 
   if (!connect_method && downstream->get_upgraded()) {
-    auto connection = resp.fs.header(http2::HD_CONNECTION);
-    if (connection) {
-      buf->append("Connection: ");
-      buf->append((*connection).value);
+    if (req.connect_proto == CONNECT_PROTO_WEBSOCKET &&
+        resp.http_status == 200) {
+      buf->append("Upgrade: websocket\r\nConnection: Upgrade\r\n");
+      auto ws_accept = make_websocket_accept_token(balloc, req);
+      if (ws_accept.empty()) {
+        return -1;
+      }
+      buf->append("Sec-WebSocket-Accept: ");
+      buf->append(ws_accept);
       buf->append("\r\n");
-    }
+    } else {
+      auto connection = resp.fs.header(http2::HD_CONNECTION);
+      if (connection) {
+        buf->append("Connection: ");
+        buf->append((*connection).value);
+        buf->append("\r\n");
+      }
 
-    auto upgrade = resp.fs.header(http2::HD_UPGRADE);
-    if (upgrade) {
-      buf->append("Upgrade: ");
-      buf->append((*upgrade).value);
-      buf->append("\r\n");
+      auto upgrade = resp.fs.header(http2::HD_UPGRADE);
+      if (upgrade) {
+        buf->append("Upgrade: ");
+        buf->append((*upgrade).value);
+        buf->append("\r\n");
+      }
     }
   }
 

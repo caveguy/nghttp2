@@ -164,9 +164,7 @@ struct Request {
     return method == HTTP_CONNECT && !connect_proto;
   }
 
-  bool extended_connect_method() const {
-    return method == HTTP_CONNECT && connect_proto;
-  }
+  bool extended_connect_method() const { return connect_proto; }
 
   FieldStore fs;
   // Timestamp when all request header fields are received.
@@ -303,9 +301,10 @@ public:
   bool request_buf_full();
   // Returns true if upgrade (HTTP Upgrade or CONNECT) is succeeded.
   // This should not depend on inspect_http1_response().
-  void check_upgrade_fulfilled();
+  void check_upgrade_fulfilled_http1();
+  void check_upgrade_fulfilled_http2();
   // Returns true if the upgrade is succeeded as a result of the call
-  // check_upgrade_fulfilled().  HTTP/2 Upgrade is excluded.
+  // check_upgrade_fulfilled_http*().  HTTP/2 Upgrade is excluded.
   bool get_upgraded() const;
   // Inspects HTTP/2 request.
   void inspect_http2_request();
