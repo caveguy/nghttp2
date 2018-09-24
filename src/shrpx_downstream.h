@@ -189,10 +189,9 @@ struct Request {
   int method;
   // HTTP major and minor version
   int http_major, http_minor;
-  // connect_protocol specified in HTTP/2 :protocol pseudo header
-  // field which enables extended CONNECT method.  This field is also
-  // set if WebSocket upgrade is requested in h1 frontend for
-  // convenience.
+  // connect_proto specified in HTTP/2 :protocol pseudo header field
+  // which enables extended CONNECT method.  This field is also set if
+  // WebSocket upgrade is requested in h1 frontend for convenience.
   int connect_proto;
   // Returns true if the request is HTTP upgrade (HTTP Upgrade or
   // CONNECT method).  Upgrade to HTTP/2 is excluded.  For HTTP/2

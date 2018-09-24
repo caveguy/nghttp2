@@ -288,7 +288,7 @@ private:
   int freelist_zone_;
   // true if SETTINGS without ACK is received from peer.
   bool settings_recved_;
-  // true if peer enables CONNECT protocol.
+  // true if peer enables RFC 8441 CONNECT protocol.
   bool allow_connect_proto_;
 };
 
