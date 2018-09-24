@@ -105,7 +105,7 @@ int Http2DownstreamConnection::attach_downstream(Downstream *downstream) {
   auto &req = downstream_->request();
 
   // HTTP/2 disables HTTP Upgrade.
-  if (req.method != HTTP_CONNECT) {
+  if (req.method != HTTP_CONNECT && !req.connect_proto) {
     req.upgrade_request = false;
   }
 
@@ -276,23 +276,25 @@ int Http2DownstreamConnection::push_request_headers() {
     num_cookies = downstream_->count_crumble_request_cookie();
   }
 
-  // 10 means:
+  // 11 means:
   // 1. :method
   // 2. :scheme
   // 3. :path
   // 4. :authority (or host)
-  // 5. via (optional)
-  // 6. x-forwarded-for (optional)
-  // 7. x-forwarded-proto (optional)
-  // 8. te (optional)
-  // 9. forwarded (optional)
-  // 10. early-data (optional)
+  // 5. :protocol (optional)
+  // 6. via (optional)
+  // 7. x-forwarded-for (optional)
+  // 8. x-forwarded-proto (optional)
+  // 9. te (optional)
+  // 10. forwarded (optional)
+  // 11. early-data (optional)
   auto nva = std::vector<nghttp2_nv>();
-  nva.reserve(req.fs.headers().size() + 10 + num_cookies +
+  nva.reserve(req.fs.headers().size() + 11 + num_cookies +
               httpconf.add_request_headers.size());
 
-  if (req.connect_proto) {
+  if (req.connect_proto == CONNECT_PROTO_WEBSOCKET) {
     nva.push_back(http2::make_nv_ll(":method", "CONNECT"));
+    nva.push_back(http2::make_nv_ll(":protocol", "websocket"));
   } else {
     nva.push_back(http2::make_nv_ls_nocopy(
         ":method", http2::to_method_string(req.method)));
@@ -316,7 +318,7 @@ int Http2DownstreamConnection::push_request_headers() {
       nva.push_back(http2::make_nv_ls_nocopy(":path", req.path));
     }
 
-    if (!req.no_authority) {
+    if (!req.no_authority || req.connect_proto) {
       nva.push_back(http2::make_nv_ls_nocopy(":authority", authority));
     } else {
       nva.push_back(http2::make_nv_ls_nocopy("host", authority));

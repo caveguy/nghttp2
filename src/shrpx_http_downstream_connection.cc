@@ -566,14 +566,12 @@ int HttpDownstreamConnection::push_request_headers() {
     buf->append("Transfer-Encoding: chunked\r\n");
   }
 
-  if (req.connection_close) {
-    buf->append("Connection: close\r\n");
-  }
-
-  if (req.connect_proto == CONNECT_PROTO_WEBSOCKET) {
-    // TODO Generate Sec-WebSocket-Key
-    buf->append("Upgrade: websocket\r\nConnection: "
-                "Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n");
+  if (req.http_major == 2) {
+    if (req.connect_proto == CONNECT_PROTO_WEBSOCKET) {
+      buf->append("Upgrade: websocket\r\nConnection: Upgrade\r\n");
+      // TODO Generate Sec-WebSocket-Key
+      buf->append("Sec-Websocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n");
+    }
   } else if (!connect_method && req.upgrade_request) {
     auto connection = req.fs.header(http2::HD_CONNECTION);
     if (connection) {
@@ -588,6 +586,8 @@ int HttpDownstreamConnection::push_request_headers() {
       buf->append((*upgrade).value);
       buf->append("\r\n");
     }
+  } else if (req.connection_close) {
+    buf->append("Connection: close\r\n");
   }
 
   auto upstream = downstream_->get_upstream();

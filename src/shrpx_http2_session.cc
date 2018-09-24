@@ -1772,7 +1772,6 @@ int Http2Session::downstream_write() {
   for (;;) {
     const uint8_t *data;
     auto datalen = nghttp2_session_mem_send(session_, &data);
-
     if (datalen < 0) {
       SSLOG(ERROR, this) << "nghttp2_session_mem_send() returned error: "
                          << nghttp2_strerror(datalen);
