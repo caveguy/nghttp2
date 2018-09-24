@@ -753,6 +753,8 @@ uint32_t hash32(const StringRef &s);
 // returns 0 if it succeeds, or -1.
 int sha256(uint8_t *buf, const StringRef &s);
 
+// Computes SHA-1 of |s|, and stores it in |buf|.  This function
+// returns 0 if it succeeds, or -1.
 int sha1(uint8_t *buf, const StringRef &s);
 
 // Returns host from |hostport|.  If host cannot be found in

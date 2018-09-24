@@ -44,6 +44,7 @@
 #include "http2.h"
 #include "util.h"
 #include "template.h"
+#include "base64.h"
 
 using namespace nghttp2;
 
@@ -1030,16 +1031,12 @@ void write_altsvc(DefaultMemchunks *buf, BlockAllocator &balloc,
 
 namespace {
 StringRef make_websocket_accept_token(BlockAllocator &balloc,
-                                      const Request &req) {
+                                      const StringRef &key) {
   static constexpr uint8_t magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-  auto key = req.fs.header(http2::HD_SEC_WEBSOCKET_KEY);
-  assert(key);
-  assert(key.value.size() == 24);
-
   std::array<uint8_t, 24 + str_size(magic)> s;
-  auto p = std::copy(std::begin(key.value), std::end(key.value), std::begin(s));
-  std::copy(p, magic, str_size(magic));
+  auto p = std::copy(std::begin(key), std::end(key), std::begin(s));
+  std::copy_n(magic, str_size(magic), p);
 
   std::array<uint8_t, 20> h;
   if (util::sha1(h.data(), StringRef{std::begin(s), std::end(s)}) != 0) {
@@ -1181,12 +1178,16 @@ int HttpsUpstream::on_downstream_header_complete(Downstream *downstream) {
     if (req.connect_proto == CONNECT_PROTO_WEBSOCKET &&
         resp.http_status == 200) {
       buf->append("Upgrade: websocket\r\nConnection: Upgrade\r\n");
-      auto ws_accept = make_websocket_accept_token(balloc, req);
-      if (ws_accept.empty()) {
+      auto key = req.fs.header(http2::HD_SEC_WEBSOCKET_KEY);
+      if (!key || key->value.size() != 24) {
+        return -1;
+      }
+      auto accept = make_websocket_accept_token(balloc, key->value);
+      if (accept.empty()) {
         return -1;
       }
       buf->append("Sec-WebSocket-Accept: ");
-      buf->append(ws_accept);
+      buf->append(accept);
       buf->append("\r\n");
     } else {
       auto connection = resp.fs.header(http2::HD_CONNECTION);

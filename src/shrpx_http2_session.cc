@@ -201,7 +201,7 @@ Http2Session::Http2Session(struct ev_loop *loop, SSL_CTX *ssl_ctx,
       connection_check_state_(CONNECTION_CHECK_NONE),
       freelist_zone_(FREELIST_ZONE_NONE),
       settings_recved_(false),
-      connect_proto_(false) {
+      allow_connect_proto_(false) {
   read_ = write_ = &Http2Session::noop;
 
   on_read_ = &Http2Session::read_noop;
@@ -2427,7 +2427,7 @@ void Http2Session::on_settings_received(const nghttp2_frame *frame) {
   for (size_t i = 0; i < frame->settings.niv; ++i) {
     auto &ent = frame->settings.iv[i];
     if (ent.settings_id == NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL) {
-      connect_proto_ = true;
+      allow_connect_proto_ = true;
       break;
     }
   }

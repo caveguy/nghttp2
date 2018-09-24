@@ -771,7 +771,12 @@ void Downstream::check_upgrade_fulfilled_http2() {
     return;
   }
 
-  return req_.connect_proto && upgraded_ == resp_.http_status == 200;
+  if (req_.connect_proto == CONNECT_PROTO_WEBSOCKET) {
+    // h1 frontend requests WebSocket upgrade
+    upgraded_ = resp_.http_status == 200;
+
+    return;
+  }
 }
 
 void Downstream::check_upgrade_fulfilled_http1() {

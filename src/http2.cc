@@ -952,6 +952,11 @@ int lookup_token(const uint8_t *name, size_t namelen) {
         return HD_X_FORWARDED_PROTO;
       }
       break;
+    case 'y':
+      if (util::streq_l("sec-websocket-ke", name, 16)) {
+        return HD_SEC_WEBSOCKET_KEY;
+      }
+      break;
     }
     break;
   case 20:
