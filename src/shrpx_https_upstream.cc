@@ -1030,20 +1030,19 @@ void write_altsvc(DefaultMemchunks *buf, BlockAllocator &balloc,
 } // namespace
 
 namespace {
-StringRef make_websocket_accept_token(BlockAllocator &balloc,
-                                      const StringRef &key) {
-  static constexpr uint8_t magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-
-  std::array<uint8_t, 24 + str_size(magic)> s;
+StringRef make_websocket_accept_token(uint8_t *dest, const StringRef &key) {
+  static constexpr uint8_t ws_magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+  std::array<uint8_t, 24 + str_size(ws_magic)> s;
   auto p = std::copy(std::begin(key), std::end(key), std::begin(s));
-  std::copy_n(magic, str_size(magic), p);
+  std::copy_n(ws_magic, str_size(ws_magic), p);
 
   std::array<uint8_t, 20> h;
   if (util::sha1(h.data(), StringRef{std::begin(s), std::end(s)}) != 0) {
     return StringRef{};
   }
 
-  return base64::encode(balloc, std::begin(h), std::end(h));
+  auto end = base64::encode(std::begin(h), std::end(h), dest);
+  return StringRef{dest, end};
 }
 } // namespace
 
@@ -1182,7 +1181,8 @@ int HttpsUpstream::on_downstream_header_complete(Downstream *downstream) {
       if (!key || key->value.size() != 24) {
         return -1;
       }
-      auto accept = make_websocket_accept_token(balloc, key->value);
+      std::array<uint8_t, base64::encode_length(20)> out;
+      auto accept = make_websocket_accept_token(out.data(), key->value);
       if (accept.empty()) {
         return -1;
       }

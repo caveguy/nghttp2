@@ -36,13 +36,15 @@ namespace nghttp2 {
 
 namespace base64 {
 
-static constexpr char B64_CHARS[] = {
+namespace {
+constexpr char B64_CHARS[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
 };
+} // namespace
 
 template <typename InputIt> std::string encode(InputIt first, InputIt last) {
   std::string res;
@@ -81,16 +83,17 @@ template <typename InputIt> std::string encode(InputIt first, InputIt last) {
   return res;
 }
 
-template <typename InputIt>
-StringRef encode(BlockAllocator &balloc, InputIt first, InputIt last) {
+constexpr size_t encode_length(size_t n) { return (n + 2) / 3 * 4; }
+
+template <typename InputIt, typename OutputIt>
+OutputIt encode(InputIt first, InputIt last, OutputIt d_first) {
   size_t len = last - first;
   if (len == 0) {
-    return StringRef{};
+    return d_first;
   }
   auto r = len % 3;
-  auto iov = make_byte_ref(balloc, (len + 2) / 3 * 4 + 1);
   auto j = last - r;
-  auto p = iov.base;
+  auto p = d_first;
   while (first != j) {
     uint32_t n = static_cast<uint8_t>(*first++) << 16;
     n += static_cast<uint8_t>(*first++) << 8;
@@ -120,7 +123,7 @@ StringRef encode(BlockAllocator &balloc, InputIt first, InputIt last) {
     break;
   }
   }
-  return StringRef{iov.base, p};
+  return p;
 }
 
 template <typename InputIt>
