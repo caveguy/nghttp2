@@ -2435,6 +2435,8 @@ void Http2Session::on_settings_received(const nghttp2_frame *frame) {
   submit_pending_requests();
 }
 
-bool Http2Session::get_connect_proto() const { return connect_proto_; }
+bool Http2Session::get_allow_connect_proto() const {
+  return allow_connect_proto_;
+}
 
 } // namespace shrpx

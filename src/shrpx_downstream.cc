@@ -776,9 +776,8 @@ void Downstream::check_upgrade_fulfilled_http2() {
 
 void Downstream::check_upgrade_fulfilled_http1() {
   if (req_.method == HTTP_CONNECT) {
-    if (req_.connect_proto) {
-      // TODO For websocket, check Sec-WebSocket-Accept header field.
-      // This is the case when frontend is h2.
+    if (req_.connect_proto == CONNECT_PROTO_WEBSOCKET) {
+      // TODO check existence of Sec-WebSocket-Accept header field.
       upgraded_ = resp_.http_status == 101;
     } else {
       upgraded_ = 200 <= resp_.http_status && resp_.http_status < 300;

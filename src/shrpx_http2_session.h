@@ -216,7 +216,7 @@ public:
   // received.
   void on_settings_received(const nghttp2_frame *frame);
 
-  bool get_connect_proto() const;
+  bool get_allow_connect_proto() const;
 
   enum {
     // Disconnected
@@ -289,7 +289,7 @@ private:
   // true if SETTINGS without ACK is received from peer.
   bool settings_recved_;
   // true if peer enables CONNECT protocol.
-  bool connect_proto_;
+  bool allow_connect_proto_;
 };
 
 nghttp2_session_callbacks *create_http2_downstream_callbacks();

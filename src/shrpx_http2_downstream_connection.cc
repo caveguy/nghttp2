@@ -244,7 +244,7 @@ int Http2DownstreamConnection::push_request_headers() {
 
   const auto &req = downstream_->request();
 
-  if (req.connect_proto && !http2session_->get_connect_proto()) {
+  if (req.connect_proto && !http2session_->get_allow_connect_proto()) {
     return -1;
   }
 

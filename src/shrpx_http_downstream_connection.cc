@@ -714,8 +714,8 @@ int HttpDownstreamConnection::push_request_headers() {
   // Don't call signal_write() if we anticipate request body.  We call
   // signal_write() when we received request body chunk, and it
   // enables us to send headers and data in one writev system call.
-  if (connect_method || downstream_->get_blocked_request_buf()->rleft() ||
-      req.connect_proto ||
+  if (req.method == HTTP_CONNECT ||
+      downstream_->get_blocked_request_buf()->rleft() ||
       (!req.http2_expect_body && req.fs.content_length == 0)) {
     signal_write();
   }
@@ -949,7 +949,7 @@ int htp_hdrs_completecb(http_parser *htp) {
       return -1;
     }
   } else if (resp.http_status / 100 == 1 ||
-             (resp.http_status == 200 && req.regular_connect_method())) {
+             (resp.http_status == 200 && req.method == HTTP_CONNECT)) {
     if (resp.fs.header(http2::HD_CONTENT_LENGTH) ||
         resp.fs.header(http2::HD_TRANSFER_ENCODING)) {
       return -1;
